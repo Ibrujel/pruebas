@@ -1,0 +1,49 @@
+# Compila CrosshairOverlay.exe en un Windows real de GitHub.
+# - En cada push o al lanzarlo a mano: el .exe queda como "artifact" del run (pestaña Actions).
+# - Al subir una etiqueta v* (p. ej. v1.0.0): además se publica en "Releases" con enlace directo.
+name: Build Windows EXE
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Instalar dependencias
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-build.txt
+
+      - name: Prueba rápida en Windows (API Win32, monitores, atajos, interfaz)
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: |
+          python -c "import sys, tempfile, pathlib; from PySide6.QtWidgets import QApplication; app = QApplication([]); from crosshair import win32; from crosshair.monitors import list_monitors; from crosshair.app import CrosshairApp; from crosshair.config import ConfigStore; print('monitores:', win32.enum_monitors()); c = CrosshairApp(ConfigStore(pathlib.Path(tempfile.mkdtemp()) / 'config.json')); print('atajos:', c.hotkeys.backend, 'fallos:', c.hotkey_failures); c.shutdown(); print('OK')"
+
+      - name: Compilar con PyInstaller
+        run: pyinstaller --noconfirm --clean --onefile --windowed --name CrosshairOverlay --exclude-module tkinter main.py
+
+      - name: Subir el .exe como artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: CrosshairOverlay-windows
+          path: dist/CrosshairOverlay.exe
+
+      - name: Publicar release (solo con etiquetas v*)
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/CrosshairOverlay.exe

@@ -1,0 +1,4 @@
+# Qt 6 para Python (solo los módulos esenciales: QtCore, QtGui, QtWidgets)
+PySide6-Essentials>=6.6
+# Atajos globales en Linux (X11) y macOS. En Windows se usa la API nativa RegisterHotKey.
+pynput>=1.7; sys_platform != "win32"
