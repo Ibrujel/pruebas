@@ -1,6 +1,7 @@
 # Compila CrosshairOverlay.exe en un Windows real de GitHub.
 # - En cada push o al lanzarlo a mano: el .exe queda como "artifact" del run (pestaña Actions).
-# - Al subir una etiqueta v* (p. ej. v1.0.0): además se publica en "Releases" con enlace directo.
+# - En cada push a main: además se publica (o actualiza) la release con la versión de
+#   crosshair/__init__.py, con enlace de descarga directo. La etiqueta la crea la propia acción.
 name: Build Windows EXE
 
 on:
@@ -42,8 +43,20 @@ jobs:
           name: CrosshairOverlay-windows
           path: dist/CrosshairOverlay.exe
 
-      - name: Publicar release (solo con etiquetas v*)
-        if: startsWith(github.ref, 'refs/tags/v')
+      - name: Leer la versión
+        id: version
+        shell: bash
+        run: echo "tag=v$(python -c 'import crosshair; print(crosshair.__version__)')" >> "$GITHUB_OUTPUT"
+
+      - name: Publicar release con el .exe
+        if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || steps.version.outputs.tag }}
+          target_commitish: ${{ github.sha }}
+          name: Crosshair Overlay ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || steps.version.outputs.tag }}
+          body: |
+            Ejecutable de Windows 10/11 (64 bits). Descarga `CrosshairOverlay.exe` y ábrelo.
+            Si aparece «Windows protegió su PC»: Más información → Ejecutar de todas formas (el .exe no está firmado).
+            Usa el juego en modo «ventana sin bordes». Revisa las normas de cada juego: algunos prohíben miras externas.
           files: dist/CrosshairOverlay.exe
